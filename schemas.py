@@ -49,6 +49,26 @@ class AnalysisReport(BaseModel):
     rejected_bullets: list[RejectedBullet] = Field(default_factory=list)
 
 
+class PipelineResult(BaseModel):
+    parsed_jd: JobDescriptionAnalysis
+    matched_skills: list[str]
+    missing_skills: list[str]
+    approved_bullets: list[str]
+    rejected_bullets: list[RejectedBullet] = Field(default_factory=list)
+    retry_count: int = 0
+
+    def to_analysis_report(self) -> AnalysisReport:
+        return AnalysisReport(
+            role_title=self.parsed_jd.role_title,
+            required_skills=self.parsed_jd.required_skills,
+            matched_skills=self.matched_skills,
+            missing_skills=self.missing_skills,
+            tailored_bullets=self.approved_bullets,
+            rejected_bullets=self.rejected_bullets,
+        )
+
+
+
 class AnalyzeRequest(BaseModel):
     jd_text: str = Field(min_length=20, description="Raw text of the job description to analyze")
 
