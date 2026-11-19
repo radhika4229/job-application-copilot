@@ -1,0 +1,50 @@
+{
+  "name": "Alex Student (Placeholder)",
+  "education": [
+    {
+      "degree": "B.Tech in Computer Science and Engineering",
+      "institution": "State Technical University",
+      "graduation_year": 2025,
+      "details": "Coursework: Data Structures, Operating Systems, Database Management Systems, Machine Learning"
+    }
+  ],
+  "skills": [
+    "Python",
+    "FastAPI",
+    "SQL",
+    "SQLite",
+    "PostgreSQL",
+    "Docker",
+    "Git",
+    "REST APIs",
+    "PyTorch",
+    "pytest"
+  ],
+  "learning": [
+    "Kubernetes",
+    "Rust",
+    "GraphQL",
+    "Apache Kafka"
+  ],
+  "projects": [
+    {
+      "name": "Smart Expense Tracker",
+      "tech": ["Python", "FastAPI", "SQLite", "pytest"],
+      "facts": [
+        "Designed and implemented RESTful API with 14 endpoints using FastAPI and SQLite.",
+        "Implemented JWT-based authentication and role-based access control for 2 distinct user roles.",
+        "Wrote automated unit and integration tests using pytest, maintaining 85% code coverage.",
+        "Reduced query response latency by 30% by adding composite database indexes on transaction tables."
+      ]
+    },
+    {
+      "name": "Medical Imaging Classifier",
+      "tech": ["Python", "PyTorch", "Docker"],
+      "facts": [
+        "Trained a convolutional neural network with PyTorch for chest X-ray classification achieving 89% validation accuracy.",
+        "Containerized inference pipeline with Docker, standardizing deployment across Linux environments.",
+        "Implemented data augmentation scripts that processed a dataset of 5,000 images."
+      ]
+    }
+  ]
+}
