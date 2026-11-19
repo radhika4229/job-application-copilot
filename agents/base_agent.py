@@ -1,15 +1,32 @@
+import json
 import logging
 import os
-from typing import Any, Callable
+import re
+from typing import Any, Callable, TypeVar
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, ValidationError, validate_call
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T", bound=BaseModel)
+
 
 class AgentMaxStepsError(Exception):
     pass
+
+
+class AgentValidationError(Exception):
+    pass
+
+
+def extract_json_payload(text: str) -> dict[str, Any] | list[Any]:
+    cleaned = text.strip()
+    if "```" in cleaned:
+        match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", cleaned)
+        if match:
+            cleaned = match.group(1).strip()
+    return json.loads(cleaned)
 
 
 class ToolCall(BaseModel):
@@ -178,3 +195,30 @@ class Agent:
         raise AgentMaxStepsError(
             f"Agent '{self.name}' exceeded maximum allowed steps ({self.max_steps}) without returning a final answer."
         )
+
+    def run_structured(self, user_prompt: str, response_model: type[T]) -> T:
+        raw_output = self.run(user_prompt)
+        try:
+            payload = extract_json_payload(raw_output)
+            return response_model.model_validate(payload)
+        except Exception as first_err:
+            logger.warning(
+                "Agent [%s] output failed validation: %s. Retrying once.",
+                self.name,
+                first_err
+            )
+            retry_prompt = (
+                f"Your previous response failed validation with error: {first_err}.\n"
+                f"Required schema: {json.dumps(response_model.model_json_schema())}\n"
+                "Please return ONLY a valid JSON object matching the required schema."
+            )
+            retry_output = self.run(retry_prompt)
+            try:
+                retry_payload = extract_json_payload(retry_output)
+                return response_model.model_validate(retry_payload)
+            except Exception as second_err:
+                logger.error("Agent [%s] failed validation after retry: %s", self.name, second_err)
+                raise AgentValidationError(
+                    f"Agent '{self.name}' failed to produce valid {response_model.__name__} after retry: {second_err}"
+                ) from second_err
+
