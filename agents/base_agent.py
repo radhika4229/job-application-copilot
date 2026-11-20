@@ -40,10 +40,11 @@ class LLMResponse(BaseModel):
 
 
 class GeminiClientWrapper:
-    def __init__(self, api_key: str | None = None, model: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: str | None = None, model: str | None = None):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
-        self.model = model
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
         self._client = None
+
 
     def _get_client(self):
         if self._client is None:
@@ -98,8 +99,10 @@ class GeminiClientWrapper:
         config = types.GenerateContentConfig(
             system_instruction=system_instruction,
             tools=tools or [],
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
             temperature=0.0
         )
+
 
         response = client.models.generate_content(
             model=self.model,

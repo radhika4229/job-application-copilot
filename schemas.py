@@ -47,6 +47,7 @@ class AnalysisReport(BaseModel):
     missing_skills: list[str]
     tailored_bullets: list[str]
     rejected_bullets: list[RejectedBullet] = Field(default_factory=list)
+    retry_count: int = 0
 
 
 class PipelineResult(BaseModel):
@@ -65,12 +66,36 @@ class PipelineResult(BaseModel):
             missing_skills=self.missing_skills,
             tailored_bullets=self.approved_bullets,
             rejected_bullets=self.rejected_bullets,
+            retry_count=self.retry_count,
         )
 
 
 
+
 class AnalyzeRequest(BaseModel):
-    jd_text: str = Field(min_length=20, description="Raw text of the job description to analyze")
+    jd_text: str = Field(
+        min_length=20,
+        max_length=20000,
+        description="Raw text of the job description to analyze"
+    )
+
+
+class AnalyzeResponse(BaseModel):
+    run_id: str
+    role_title: str
+    required_skills: list[str]
+    matched_skills: list[str]
+    missing_skills: list[str]
+    tailored_bullets: list[str]
+    rejected_bullets: list[RejectedBullet] = Field(default_factory=list)
+    retry_count: int = 0
+
+
+class RunSummary(BaseModel):
+    id: str
+    created_at: str
+    status: str
+
 
 
 class RunRecord(BaseModel):
