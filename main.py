@@ -1,9 +1,11 @@
 import logging
+import os
+import re
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 from fastapi import FastAPI, HTTPException, Query, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from db import get_run, init_db, list_runs, save_run
 from orchestrator import PipelineError, run_pipeline
 from schemas import AnalyzeRequest, AnalyzeResponse, RunSummary
@@ -13,6 +15,16 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger("job_application_copilot")
+
+
+def sanitize_error_message(message: str) -> str:
+    """Masks potential API keys, query params, or sensitive tokens from error messages."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if api_key and len(api_key) > 4:
+        message = message.replace(api_key, "[REDACTED_API_KEY]")
+    message = re.sub(r"AIza[0-9A-Za-z-_]{35}", "[REDACTED_API_KEY]", message)
+    message = re.sub(r"key=[0-9A-Za-z-_]+", "key=[REDACTED]", message)
+    return message
 
 
 @asynccontextmanager
@@ -63,17 +75,18 @@ def analyze_job_description(request: AnalyzeRequest) -> Any:
         )
 
     except PipelineError as e:
-        logger.error("Pipeline failed for run %s at stage '%s': %s", run_id, e.stage, e.message)
+        safe_msg = sanitize_error_message(e.message)
+        logger.error("Pipeline failed for run %s at stage '%s': %s", run_id, e.stage, safe_msg)
         save_run(
             run_id=run_id,
             jd_text=request.jd_text,
             status="failed",
-            error_message=f"Stage '{e.stage}': {e.message}"
+            error_message=f"Stage '{e.stage}': {safe_msg}"
         )
         return JSONResponse(
             status_code=status.HTTP_502_BAD_GATEWAY,
             content={
-                "detail": f"Pipeline failed at stage '{e.stage}': {e.message}",
+                "detail": f"Pipeline failed at stage '{e.stage}': {safe_msg}",
                 "stage": e.stage,
                 "run_id": run_id
             }
@@ -109,3 +122,35 @@ def get_run_details(run_id: str) -> dict[str, Any]:
             detail=f"Run '{run_id}' not found."
         )
     return run
+
+
+@app.get("/runs/{run_id}/export", tags=["Export"])
+def export_run_markdown(run_id: str) -> PlainTextResponse:
+    run = get_run(run_id=run_id)
+    if not run:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run '{run_id}' not found."
+        )
+    result = run.get("result")
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Run '{run_id}' has no analysis result to export."
+        )
+
+    role = result.get("role_title", "Candidate")
+    matched = ", ".join(result.get("matched_skills", []))
+    bullets = result.get("tailored_bullets", [])
+
+    lines = [
+        f"# Tailored Resume Highlights: {role}",
+        "",
+        f"**Target Role:** {role}",
+        f"**Matched Skills:** {matched}",
+        "",
+        "## Verified Bullet Points",
+        *[f"- {bullet}" for bullet in bullets]
+    ]
+    return PlainTextResponse(content="\n".join(lines), media_type="text/markdown")
+

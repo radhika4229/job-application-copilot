@@ -1,4 +1,3 @@
-import pytest
 from tools.profile_tools import (
     get_profile_skills,
     get_project_details,

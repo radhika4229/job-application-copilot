@@ -151,3 +151,35 @@ def test_get_run_by_id_found_and_not_found(client):
     response_not_found = client.get("/runs/unknown-uuid-999")
     assert response_not_found.status_code == 404
     assert "not found" in response_not_found.json()["detail"].lower()
+
+
+def test_export_run_markdown_success_and_errors(client):
+    # Non-existent run export
+    resp_404 = client.get("/runs/non-existent-id/export")
+    assert resp_404.status_code == 404
+
+    # Run with no result
+    save_run(
+        run_id="run-no-result",
+        jd_text="Some JD",
+        status="failed",
+        error_message="Something failed"
+    )
+    resp_400 = client.get("/runs/run-no-result/export")
+    assert resp_400.status_code == 400
+
+    # Successful export
+    save_run(
+        run_id="run-with-result",
+        jd_text="Backend Engineer JD",
+        status="success",
+        result_json='{"role_title": "Backend Engineer", "matched_skills": ["Python", "FastAPI"], "tailored_bullets": ["Built high-speed REST APIs using FastAPI."]}'
+    )
+    resp_export = client.get("/runs/run-with-result/export")
+    assert resp_export.status_code == 200
+    assert resp_export.headers["content-type"].startswith("text/markdown")
+    content = resp_export.text
+    assert "# Tailored Resume Highlights: Backend Engineer" in content
+    assert "- Built high-speed REST APIs using FastAPI." in content
+    assert "Python, FastAPI" in content
+

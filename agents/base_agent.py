@@ -45,6 +45,9 @@ class GeminiClientWrapper:
         self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
         self._client = None
 
+    def __repr__(self) -> str:
+        return f"<GeminiClientWrapper model='{self.model}'>"
+
 
     def _get_client(self):
         if self._client is None:
